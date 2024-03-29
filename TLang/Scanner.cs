@@ -1,14 +1,14 @@
 namespace TLang;
 
 public class Scanner {
-    private string _source;
-    private List<Token> _tokens = new();
+    private readonly string _source;
+    private readonly List<Token> _tokens = [];
 
-    private int _start = 0;
-    private int _current = 0;
+    private int _start;
+    private int _current;
     private int _line = 1;
 
-    private static Dictionary<string, TokenType> _keywords = new() {
+    private static readonly Dictionary<string, TokenType> Keywords = new() {
         { "and",    TokenType.And },
         { "class",  TokenType.Class },
         { "else",   TokenType.Else },
@@ -124,7 +124,7 @@ public class Scanner {
             Advance();
 
         var text = _source.Substring(_start, _current - _start);
-        var type = _keywords.GetValueOrDefault(text, TokenType.Identifier);
+        var type = Keywords.GetValueOrDefault(text, TokenType.Identifier);
         AddToken(type);
     }
 

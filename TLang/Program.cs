@@ -36,16 +36,11 @@ class Program {
         var scanner = new Scanner(source);
         var tokens = scanner.ScanTokens();
 
-        foreach (var token in tokens) {
-            Console.WriteLine(token);
-        }
-    }
+        var parser = new Parser(tokens);
+        var expression = parser.Parse();
 
-    private static void Error(int line, string message) {
-        Report(line, String.Empty, message);
-    }
+        if (hadError) return;
 
-    private static void Report(int line, string where, string message) {
-        Console.Error.WriteLine($"[line {line} Error {where}: {message}");
+        Console.WriteLine(new AstPrinter().Print(expression));
     }
 }
