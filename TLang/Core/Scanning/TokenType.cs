@@ -1,4 +1,4 @@
-namespace TLang;
+namespace TLang.Core.Scanning;
 
 public enum TokenType {
     // Single-character tokens.

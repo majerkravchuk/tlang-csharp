@@ -1,19 +1,23 @@
-namespace TLang;
+using TLang.Core.Scanning;
 
-public class Parser {
-    private List<Token> Tokens { get; set; }
-    private int _current = 0;
+namespace TLang.Core.Parsing;
+
+internal class Parser {
+    private readonly IReport _report;
+    private readonly List<Token> _tokens;
+    private int _current;
 
     private class ParseException : ApplicationException;
 
-    public Parser(List<Token> tokens) {
-        Tokens = tokens;
+    internal Parser(List<Token> tokens, IReport report) {
+        _tokens = tokens;
+        _report = report;
     }
 
-    public Expression Parse() {
+    internal Expression Parse() {
         try {
             return ParseExpression();
-        } catch (ParseException err) {
+        } catch (ParseException) {
             return null;
         }
     }
@@ -25,7 +29,7 @@ public class Parser {
     private Expression ParseEquality() {
         var expr = ParseComparison();
         while (Match(TokenType.BangEqual) || Match(TokenType.EqualEqual)) {
-            expr = new Expression.BinaryExpression(expr, Previous(), ParseComparison());
+            expr = new BinaryExpression(expr, Previous(), ParseComparison());
         }
 
         return expr;
@@ -35,7 +39,7 @@ public class Parser {
         var expr = ParseTerm();
 
         while (Match(TokenType.Greater, TokenType.GreaterEqual, TokenType.Less, TokenType.LessEqual)) {
-            expr = new Expression.BinaryExpression(expr, Previous(), ParseTerm());
+            expr = new BinaryExpression(expr, Previous(), ParseTerm());
         }
 
         return expr;
@@ -45,7 +49,7 @@ public class Parser {
         var expr = ParseFactor();
 
         while (Match(TokenType.Minus, TokenType.Plus)) {
-            expr = new Expression.BinaryExpression(expr, Previous(), ParseFactor());
+            expr = new BinaryExpression(expr, Previous(), ParseFactor());
         }
 
         return expr;
@@ -55,7 +59,7 @@ public class Parser {
         var expr = ParseUnary();
 
         while (Match(TokenType.Slash, TokenType.Star)) {
-            expr = new Expression.BinaryExpression(expr, Previous(), ParseUnary());
+            expr = new BinaryExpression(expr, Previous(), ParseUnary());
         }
 
         return expr;
@@ -63,44 +67,44 @@ public class Parser {
 
     private Expression ParseUnary() {
         return Match(TokenType.Bang, TokenType.Minus)
-            ? new Expression.UnaryExpression(Previous(), ParseUnary())
+            ? new UnaryExpression(Previous(), ParseUnary())
             : ParsePrimary();
     }
 
     private Expression ParsePrimary() {
-        if (Match(TokenType.False)) return new Expression.LiteralExpression(false);
-        if (Match(TokenType.True)) return new Expression.LiteralExpression(true);
-        if (Match(TokenType.Nil)) return new Expression.LiteralExpression(null);
+        if (Match(TokenType.False)) return new LiteralExpression(false);
+        if (Match(TokenType.True)) return new LiteralExpression(true);
+        if (Match(TokenType.Nil)) return new LiteralExpression(null);
 
         if (Match(TokenType.Number, TokenType.String)) {
-            return new Expression.LiteralExpression(Previous().Literal);
+            return new LiteralExpression(Previous().Literal);
         }
 
         if (Match(TokenType.LeftParen)) {
             var expr = ParseExpression();
             ConsumeOrThrow(TokenType.RightParen, "Expect ')' after expression.");
-            return new Expression.GroupingExpression(expr);
+            return new GroupingExpression(expr);
         }
 
         throw Error(Peek(), "Expect expression.");
     }
 
-    private Token ConsumeOrThrow(TokenType type, string message) {
-        if (Check(type)) return Advance();
+    private void ConsumeOrThrow(TokenType type, string message) {
+        if (Check(type)) Advance();
 
         throw Error(Peek(), message);
     }
 
-    private static ParseException Error(Token token, string message) {
+    private ParseException Error(Token token, string message) {
         ReportError(token, message);
         return new ParseException();
     }
 
-    private static void ReportError(Token token, string message) {
+    private  void ReportError(Token token, string message) {
         if (token.Type == TokenType.Eof) {
-            Report.Write(token.Line, " at end", message);
+            _report.Write(token.Line, " at end", message);
         } else {
-            Report.Write(token.Line, " at '" + token.Lexeme + "'", message);
+            _report.Write(token.Line, " at '" + token.Lexeme + "'", message);
         }
     }
 
@@ -138,11 +142,11 @@ public class Parser {
     }
 
     private Token Peek() {
-        return Tokens[_current];
+        return _tokens[_current];
     }
 
     private Token Previous() {
-        return Tokens[_current - 1];
+        return _tokens[_current - 1];
     }
 
     private bool Check(TokenType token) {

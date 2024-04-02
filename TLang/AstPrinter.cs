@@ -1,24 +1,26 @@
 using System.Text;
+using TLang.Core.Parsing;
 
 namespace TLang;
 
-public class AstPrinter : Expression.IExpressionVisitor<string> {
-    public string Print(Expression expression) {
-        return expression.Accept(this);
+internal class AstPrinter : IExpressionVisitor<string> {
+    internal string Print(Expression expression) {
+        return expression.AcceptVisitor(this);
     }
-    public string VisitBinaryExpression(Expression.BinaryExpression expression) {
+
+    public string Visit(BinaryExpression expression) {
         return Parenthesize(expression.Opt.Lexeme, expression.Left, expression.Right);
     }
 
-    public string VisitGroupingExpression(Expression.GroupingExpression expression) {
+    public string Visit(GroupingExpression expression) {
         return Parenthesize("group", expression.Expression);
     }
 
-    public string VisitLiteralExpression(Expression.LiteralExpression expression) {
+    public string Visit(LiteralExpression expression) {
         return expression.Value == null ? "nil" : expression.Value.ToString();
     }
 
-    public string VisitUnaryExpression(Expression.UnaryExpression expression) {
+    public string Visit(UnaryExpression expression) {
         return Parenthesize(expression.Opt.Lexeme, expression.Right);
     }
 
@@ -28,12 +30,10 @@ public class AstPrinter : Expression.IExpressionVisitor<string> {
         builder.Append('(').Append(name);
         foreach (var expression in expressions) {
             builder.Append(' ');
-            builder.Append(expression.Accept(this));
+            builder.Append(expression.AcceptVisitor(this));
         }
         builder.Append(')');
 
         return builder.ToString();
     }
 }
-
-class AstPrinterImpl : AstPrinter { }

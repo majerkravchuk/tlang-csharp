@@ -1,8 +1,9 @@
-namespace TLang;
+namespace TLang.Core.Scanning;
 
 public class Scanner {
     private readonly string _source;
     private readonly List<Token> _tokens = [];
+    private readonly IReport _report;
 
     private int _start;
     private int _current;
@@ -27,8 +28,9 @@ public class Scanner {
         { "while",  TokenType.While }
     };
 
-    public Scanner(string source) {
+    public Scanner(string source, IReport report) {
         _source = source;
+        _report = report;
     }
 
     public List<Token> ScanTokens() {
@@ -112,7 +114,7 @@ public class Scanner {
                     ScanIdentifier();
                 }
                 else {
-                    Report.Error(_line, "Unexpected character.");
+                    _report.Error(_line, "Unexpected character.");
                 }
 
                 break;
@@ -143,7 +145,7 @@ public class Scanner {
         }
 
         if (IsAtEnd()) {
-            Report.Error(_line, "Unterminated string.");
+            _report.Error(_line, "Unterminated string.");
             return;
         }
 
