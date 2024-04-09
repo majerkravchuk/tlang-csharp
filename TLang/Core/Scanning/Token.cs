@@ -7,6 +7,6 @@ public class Token(TokenType type, string lexeme, object literal, int line) {
     public readonly int Line = line;
 
     public override string ToString() {
-        return Type + " " + Lexeme + " " + Literal;
+        return $"{Type} ${Lexeme} {Literal}";
     }
 }

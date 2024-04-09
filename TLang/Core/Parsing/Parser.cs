@@ -14,16 +14,36 @@ internal class Parser {
         _report = report;
     }
 
-    internal Expression Parse() {
-        try {
-            return ParseExpression();
-        } catch (ParseException) {
-            return null;
+    internal List<Statement> Parse() {
+        var statements = new List<Statement>();
+        while (!IsAtEnd()) {
+            statements.Add(ParseDeclaration());
         }
+
+        return statements;
     }
 
+    #region Expressions
+
     private Expression ParseExpression() {
-        return ParseEquality();
+        return ParseAssignment();
+    }
+
+    private Expression ParseAssignment() {
+        var expr = ParseEquality();
+
+        if (Match(TokenType.Equal)) {
+            var equals = Previous();
+            var value = ParseAssignment();
+
+            if (expr is VariableExpression varExp) {
+                return new AssignExpression(varExp.Name, value);
+            }
+
+            Error(equals, "Invalid assignment target.");
+        }
+
+        return expr;
     }
 
     private Expression ParseEquality() {
@@ -80,6 +100,10 @@ internal class Parser {
             return new LiteralExpression(Previous().Literal);
         }
 
+        if (Match(TokenType.Identifier)) {
+            return new VariableExpression(Previous());
+        }
+
         if (Match(TokenType.LeftParen)) {
             var expr = ParseExpression();
             ConsumeOrThrow(TokenType.RightParen, "Expect ')' after expression.");
@@ -89,9 +113,64 @@ internal class Parser {
         throw Error(Peek(), "Expect expression.");
     }
 
-    private void ConsumeOrThrow(TokenType type, string message) {
-        if (Check(type)) Advance();
+    #endregion
 
+    #region Statements
+
+    private Statement ParseStatement() {
+        if (Match(TokenType.Print)) return ParsePrintStatement();
+        if (Match(TokenType.LeftBrace)) return new BlockStatement(ParseBlockStatement());
+
+        return ParseExpressionStatement();
+    }
+
+    private List<Statement> ParseBlockStatement() {
+        var statements = new List<Statement>();
+
+        while (!Check(TokenType.RightBrace) && !IsAtEnd()) {
+            statements.Add(ParseDeclaration());
+        }
+
+        ConsumeOrThrow(TokenType.RightBrace, "Expect '}' after block.");
+        return statements;
+    }
+
+    private Statement ParsePrintStatement() {
+        var value = ParseExpression();
+        ConsumeOrThrow(TokenType.Semicolon, "Expect ';' after value.");
+        return new PrintStatement(value);
+    }
+
+    private Statement ParseExpressionStatement() {
+        var expression = ParseExpression();
+        ConsumeOrThrow(TokenType.Semicolon, "Expect ';' after value.");
+        return new ExpressionStatement(expression);
+    }
+
+    private Statement ParseDeclaration() {
+        try {
+            return Match(TokenType.Var) ? ParseVarDeclaration() : ParseStatement();
+        } catch (ParseException) {
+            Synchronize();
+            return null;
+        }
+    }
+
+    private Statement ParseVarDeclaration() {
+        var name = ConsumeOrThrow(TokenType.Identifier, "Expect variable name.");
+        Expression initializer = null;
+        if (Match(TokenType.Equal)) {
+            initializer = ParseExpression();
+        }
+
+        ConsumeOrThrow(TokenType.Semicolon, "Expect ';' after variable declaration.");
+        return new VarStatement(name, initializer);
+    }
+
+    #endregion
+
+    private Token ConsumeOrThrow(TokenType type, string message) {
+        if (Check(type)) return Advance();
         throw Error(Peek(), message);
     }
 
@@ -102,9 +181,9 @@ internal class Parser {
 
     private  void ReportError(Token token, string message) {
         if (token.Type == TokenType.Eof) {
-            _report.Write(token.Line, " at end", message);
+            _report.Write(token.Line, "at end", message);
         } else {
-            _report.Write(token.Line, " at '" + token.Lexeme + "'", message);
+            _report.Write(token.Line, "at '" + token.Lexeme + "'", message);
         }
     }
 

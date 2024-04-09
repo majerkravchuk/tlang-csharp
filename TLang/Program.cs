@@ -7,7 +7,6 @@ using TLang.Core.Scanning;
 namespace TLang;
 
 class Program {
-    private static readonly Interpreter Interpreter = new();
     private static bool _hadError;
 
     static void Main(string[] args) {
@@ -49,30 +48,9 @@ class Program {
         var tokens = scanner.ScanTokens();
 
         var parser = new Parser(tokens, report);
-        var expression = parser.Parse();
-        try {
-            var value = Interpreter.Interpret(expression);
-            Console.WriteLine(Stringify(value));
-        } catch (RuntimeError error) {
-            report.RuntimeError(error);
-            return;
-        }
+        var interpreter = new Interpreter(report);
+        var statements = parser.Parse();
 
-        Console.WriteLine(new AstPrinter().Print(expression));
-    }
-
-    private static string Stringify(object value) {
-        switch (value) {
-            case null:
-                return "nil";
-            case double dv: {
-                var text = dv.ToString(CultureInfo.InvariantCulture);
-                if (text.EndsWith(".0"))
-                    text = text[..^2];
-                return text;
-            }
-            default:
-                return value.ToString()!;
-        }
+        interpreter.Interpret(statements);
     }
 }
