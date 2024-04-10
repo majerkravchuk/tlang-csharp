@@ -71,6 +71,18 @@ internal class Interpreter : IExpressionVisitor<object>, IStatementVisitor {
         throw new Exception("Unknown binary operation.");
     }
 
+    public object Visit(LogicalExpression expression) {
+        var left = Evaluate(expression.Left);
+
+        if (expression.Opt.Type == TokenType.Or) {
+            if (IsTruthy(left)) return left;
+        } else {
+            if (!IsTruthy(left)) return left;
+        }
+
+        return Evaluate(expression.Right);
+    }
+
     public object Visit(AssignExpression expression) {
         var value = Evaluate(expression.Value);
         _environment.Assign(expression.Name, value);
@@ -108,6 +120,32 @@ internal class Interpreter : IExpressionVisitor<object>, IStatementVisitor {
 
     #region Statements
 
+    public void Visit(ExpressionStatement statement) {
+        Evaluate(statement.Expression);
+    }
+
+    public void Visit(IfStatement statement) {
+        if (IsTruthy(Evaluate(statement.Condition))) {
+            Execute(statement.ThenBranch);
+        } else if (statement.ElseBranch != null) {
+            Execute(statement.ElseBranch);
+        }
+    }
+
+    public void Visit(VarStatement statement) {
+        var value = statement.Initializer != null
+            ? Evaluate(statement.Initializer)
+            : null;
+
+        _environment.Define(statement.Name.Lexeme, value);
+    }
+
+    public void Visit(WhileStatement statement) {
+        while (IsTruthy(Evaluate(statement.Condition))) {
+            Execute(statement.Body);
+        }
+    }
+
     public void Visit(PrintStatement statement) {
         var value = Evaluate(statement.Expression);
         Console.WriteLine(Stringify(value));
@@ -132,18 +170,6 @@ internal class Interpreter : IExpressionVisitor<object>, IStatementVisitor {
         {
             _environment = previous;
         }
-    }
-
-    public void Visit(ExpressionStatement statement) {
-        Evaluate(statement.Expression);
-    }
-
-    public void Visit(VarStatement statement) {
-        var value = statement.Initializer != null
-            ? Evaluate(statement.Initializer)
-            : null;
-
-        _environment.Define(statement.Name.Lexeme, value);
     }
 
     private void Execute(Statement statement) {

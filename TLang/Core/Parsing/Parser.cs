@@ -30,7 +30,7 @@ internal class Parser {
     }
 
     private Expression ParseAssignment() {
-        var expr = ParseEquality();
+        var expr = ParseOr();
 
         if (Match(TokenType.Equal)) {
             var equals = Previous();
@@ -46,8 +46,33 @@ internal class Parser {
         return expr;
     }
 
+    private Expression ParseOr() {
+        var expr = ParseAnd();
+
+        while (Match(TokenType.Or)) {
+            var opt = Previous();
+            var right = ParseAnd();
+            expr = new LogicalExpression(expr, opt, right);
+        }
+
+        return expr;
+    }
+
+    private Expression ParseAnd() {
+        var expr = ParseEquality();
+
+        while (Match(TokenType.And)) {
+            var opt = Previous();
+            var right = ParseEquality();
+            expr = new LogicalExpression(expr, opt, right);
+        }
+
+        return expr;
+    }
+
     private Expression ParseEquality() {
         var expr = ParseComparison();
+
         while (Match(TokenType.BangEqual) || Match(TokenType.EqualEqual)) {
             expr = new BinaryExpression(expr, Previous(), ParseComparison());
         }
@@ -118,10 +143,61 @@ internal class Parser {
     #region Statements
 
     private Statement ParseStatement() {
+        if (Match(TokenType.For)) return ParseForStatement();
+        if (Match(TokenType.If)) return ParseIfStatement();
         if (Match(TokenType.Print)) return ParsePrintStatement();
+        if (Match(TokenType.While)) return ParseWhileStatement();
         if (Match(TokenType.LeftBrace)) return new BlockStatement(ParseBlockStatement());
 
         return ParseExpressionStatement();
+    }
+
+    private Statement ParseForStatement() {
+        ConsumeOrThrow(TokenType.LeftParen, "Expect '(' after 'for'.");
+
+        Statement? initializer;
+        if (Match(TokenType.Semicolon)) {
+            initializer = null;
+        } else if (Match(TokenType.Var)) {
+            initializer = ParseVarDeclaration();
+        } else {
+            initializer = ParseExpressionStatement();
+        }
+
+        Expression? condition = null;
+        if (!Check(TokenType.Semicolon)) {
+            condition = ParseExpression();
+        }
+        ConsumeOrThrow(TokenType.Semicolon, "Expect ';' after loop condition.");
+
+        Expression? increment = null;
+        if (!Check(TokenType.RightParen)) {
+            increment = ParseExpression();
+        }
+        ConsumeOrThrow(TokenType.RightParen, "Expect ')' after for clauses.");
+
+        var body = ParseStatement();
+
+        if (increment != null) {
+            body = new BlockStatement([body, new ExpressionStatement(increment)]);
+        }
+
+        condition ??= new LiteralExpression(true);
+        body = new WhileStatement(condition, body);
+
+        if (initializer != null) {
+            body = new BlockStatement([initializer, body]);
+        }
+
+        return body;
+    }
+
+    private Statement ParseWhileStatement() {
+        ConsumeOrThrow(TokenType.LeftParen, "Expect '(' after 'while'.");
+        var condition = ParseExpression();
+        ConsumeOrThrow(TokenType.RightParen, "Expect ')' after condition.");
+        var body = ParseStatement();
+        return new WhileStatement(condition, body);
     }
 
     private List<Statement> ParseBlockStatement() {
@@ -133,6 +209,17 @@ internal class Parser {
 
         ConsumeOrThrow(TokenType.RightBrace, "Expect '}' after block.");
         return statements;
+    }
+
+    private Statement ParseIfStatement() {
+        ConsumeOrThrow(TokenType.LeftParen, "Expect '(' after 'if'.");
+        var condition = ParseExpression();
+        ConsumeOrThrow(TokenType.RightParen, "Expect ')' after if condition.");
+
+        var thenBranch = ParseStatement();
+        var elseBranch = Match(TokenType.Else) ? ParseStatement() : null;
+
+        return new IfStatement(condition, thenBranch, elseBranch);
     }
 
     private Statement ParsePrintStatement() {

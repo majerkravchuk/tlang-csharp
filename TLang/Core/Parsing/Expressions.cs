@@ -13,12 +13,17 @@ internal interface IExpressionVisitor<T> {
     // T Visit(GetExpression expression);
     T Visit(GroupingExpression expression);
     T Visit(LiteralExpression expression);
-    // T Visit(LogicalExpression expression);
+    T Visit(LogicalExpression expression);
     // T Visit(SetExpression expression);
     // T Visit(SuperExpression expression);
     // T Visit(ThisExpression expression);
     T Visit(UnaryExpression expression);
     T? Visit(VariableExpression expression);
+}
+
+internal record LogicalExpression(Expression Left, Token Opt, Expression Right) : Expression
+{
+    internal override T AcceptVisitor<T>(IExpressionVisitor<T> visitor) => visitor.Visit(this);
 }
 
 internal record BinaryExpression(Expression Left, Token Opt, Expression Right) : Expression

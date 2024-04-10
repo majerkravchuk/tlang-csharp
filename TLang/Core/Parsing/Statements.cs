@@ -7,10 +7,22 @@ internal abstract record Statement {
 }
 
 internal interface IStatementVisitor {
-    void Visit(PrintStatement statement);
-    void Visit(BlockStatement statement);
     void Visit(ExpressionStatement statement);
+    void Visit(IfStatement statement);
+    void Visit(PrintStatement statement);
     void Visit(VarStatement statement);
+    void Visit(WhileStatement statement);
+    void Visit(BlockStatement statement);
+}
+
+internal record  WhileStatement(Expression Condition, Statement Body) : Statement
+{
+    internal override void AcceptVisitor(IStatementVisitor visitor) => visitor.Visit(this);
+}
+
+internal record IfStatement(Expression Condition, Statement ThenBranch, Statement? ElseBranch) : Statement
+{
+    internal override void AcceptVisitor(IStatementVisitor visitor) => visitor.Visit(this);
 }
 
 internal record PrintStatement(Expression Expression) : Statement
